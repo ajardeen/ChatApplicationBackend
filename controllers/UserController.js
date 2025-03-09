@@ -8,7 +8,7 @@ const Register = async (req, res) => {
 
   try {
     const username = name;
-    
+
     const user = await User.findOne({ email });
     if (user) {
       return res.status(400).json({ message: "User already registered" });
@@ -16,7 +16,7 @@ const Register = async (req, res) => {
     if (username && email && password) {
       const hashedPassword = await bcrypt.hash(password, 10);
 
-     await User.create({
+      await User.create({
         username,
         email,
         password: hashedPassword,
@@ -38,11 +38,11 @@ const Login = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    const decodedPassword = await bcrypt.compare(password,user.password)
+    const decodedPassword = await bcrypt.compare(password, user.password);
     if (!decodedPassword) {
       return res.status(500).json({ message: "Password inValid" });
     }
-    const token = await tokenGenerator(user._id, email,user.username);
+    const token = await tokenGenerator(user._id, email, user.username);
     return res
       .status(200)
       .json({ message: "Successfully Logged IN", token: token });
@@ -52,13 +52,38 @@ const Login = async (req, res) => {
   }
 };
 
-const getAllUsers = async (req,res)=>{
+// google login
+const googleLogin = async (req, res) => {
+  try {
+    const { googleId, name, email } = req.body;
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      // Create a new user if not found
+      user = new User({ googleId, username:name, email });
+      await user.save();
+    }
+
+    // Generate JWT Token
+    const token = await tokenGenerator(user._id, email, user.username);
+    return res
+      .status(200)
+      .json({ message: "Successfully Logged IN", token: token });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+const getAllUsers = async (req, res) => {
   try {
     const users = await User.find({}, "_id username"); // Only return _id and username
     res.json(users);
-} catch (error) {
+  } catch (error) {
     res.status(500).json({ message: "Error fetching users" });
-}
-}
+  }
+};
 
-module.exports = { Register, Login,getAllUsers };
+module.exports = { Register, Login, googleLogin, getAllUsers };
